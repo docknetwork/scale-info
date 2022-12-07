@@ -120,6 +120,22 @@ fn phantom_data_field_is_erased() {
 }
 
 #[test]
+fn omit_prefix_attr_works() {
+    #[allow(unused)]
+    #[derive(TypeInfo)]
+    #[scale_info(omit_prefix)]
+    struct P {
+        a: u8,
+    }
+
+    let ty = Type::builder()
+        .path(Path::new("P", "P"))
+        .composite(Fields::named().field(|f| f.ty::<u8>().name("a").type_name("u8")));
+
+    assert_type!(P, ty);
+}
+
+#[test]
 fn phantom_data_tuple_struct_field_is_erased() {
     #[allow(unused)]
     #[derive(TypeInfo)]

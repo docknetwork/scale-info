@@ -29,6 +29,7 @@ mod keywords {
     syn::custom_keyword!(bounds);
     syn::custom_keyword!(skip_type_params);
     syn::custom_keyword!(capture_docs);
+    syn::custom_keyword!(omit_prefix);
 }
 
 /// Parsed and validated set of `#[scale_info(...)]` attributes for an item.
@@ -37,6 +38,7 @@ pub struct Attributes {
     skip_type_params: Option<SkipTypeParamsAttr>,
     capture_docs: Option<CaptureDocsAttr>,
     crate_path: Option<CratePathAttr>,
+    omit_prefix: bool,
 }
 
 impl Attributes {
@@ -46,6 +48,7 @@ impl Attributes {
         let mut skip_type_params = None;
         let mut capture_docs = None;
         let mut crate_path = None;
+        let mut omit_prefix = false;
 
         let attributes_parser = |input: &ParseBuffer| {
             let attrs: Punctuated<ScaleInfoAttr, Token![,]> =
@@ -89,7 +92,6 @@ impl Attributes {
                         }
                         capture_docs = Some(parsed_capture_docs);
                     }
-
                     ScaleInfoAttr::CratePath(parsed_crate_path) => {
                         if crate_path.is_some() {
                             return Err(syn::Error::new(
@@ -99,6 +101,16 @@ impl Attributes {
                         }
 
                         crate_path = Some(parsed_crate_path);
+                    }
+                    ScaleInfoAttr::OmitPrefix => {
+                        if omit_prefix {
+                            return Err(syn::Error::new(
+                                attr.span(),
+                                "Duplicate `omit_prefix` attributes",
+                            ))
+                        }
+
+                        omit_prefix = true;
                     }
                 }
             }
@@ -130,6 +142,7 @@ impl Attributes {
             skip_type_params,
             capture_docs,
             crate_path,
+            omit_prefix,
         })
     }
 
@@ -141,6 +154,11 @@ impl Attributes {
     /// Get the `#[scale_info(skip_type_params(...))]` attribute, if present.
     pub fn skip_type_params(&self) -> Option<&SkipTypeParamsAttr> {
         self.skip_type_params.as_ref()
+    }
+
+    /// Returns `true` if `#[scale_info(omit_prefix)]` attribute is present.
+    pub fn omit_prefix(&self) -> bool {
+        self.omit_prefix
     }
 
     /// Returns the value of `#[scale_info(capture_docs = "..")]`.
@@ -277,6 +295,7 @@ pub enum ScaleInfoAttr {
     SkipTypeParams(SkipTypeParamsAttr),
     CaptureDocs(CaptureDocsAttr),
     CratePath(CratePathAttr),
+    OmitPrefix,
 }
 
 impl Parse for ScaleInfoAttr {
@@ -294,6 +313,9 @@ impl Parse for ScaleInfoAttr {
         } else if lookahead.peek(Token![crate]) {
             let crate_path = input.parse()?;
             Ok(Self::CratePath(crate_path))
+        } else if lookahead.peek(keywords::omit_prefix) {
+            input.parse::<keywords::omit_prefix>()?;
+            Ok(Self::OmitPrefix)
         } else {
             Err(lookahead.error())
         }

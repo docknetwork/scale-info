@@ -115,13 +115,18 @@ impl TypeInfoImpl {
             }
         };
         let docs = self.generate_docs(&self.ast.attrs);
+        let type_path = if self.attrs.omit_prefix() {
+            quote!(::core::stringify!(#ident))
+        } else {
+            quote!(::core::module_path!())
+        };
 
         Ok(quote! {
             impl #impl_generics #scale_info::TypeInfo for #ident #ty_generics #where_clause {
                 type Identity = Self;
                 fn type_info() -> #scale_info::Type {
                     #scale_info::Type::builder()
-                        .path(#scale_info::Path::new(::core::stringify!(#ident), ::core::module_path!()))
+                        .path(#scale_info::Path::new(::core::stringify!(#ident), #type_path))
                         .type_params(#scale_info::prelude::vec![ #( #type_params ),* ])
                         #docs
                         .#build_type
